@@ -3,13 +3,21 @@
 
 #include <chrono>
 #include <map>
+#include <mutex>
 #include <string>
 
 #include "basic.h"
 
+int value = 0;
+std::mutex m;
+
 void example1();
 void example2();
 void example3();
+void example4();
+
+void add(int times);
+void addWithMutex(int times);
 
 int main() {
   using namespace std::chrono;
@@ -18,7 +26,7 @@ int main() {
 
   // your code here
 
-  example3();
+  example4();
 
   // end your code;
 
@@ -70,8 +78,50 @@ void example3() {
   // using class function
   std::thread worker4(&Base::staticRun, value);
 
+  worker4.detach();
+
+  // use when you are not sure if you can join
+  if (worker4.joinable()) {
+    worker4.join();
+    std::cout << "\n\njoin4() \n\n";
+  }
   worker1.join();
   worker2.join();
   worker3.join();
-  worker4.join();
+}
+
+void example4() {
+
+  // no mutex
+  std::thread t1(add, 100000);
+  std::thread t2(add, 100000);
+
+  t1.join();
+  t2.join();
+
+  std::cout << value << std::endl;
+  // end no mutex;
+
+  //   with mutex
+  value = 0;
+  std::thread t3(addWithMutex, 100000);
+  std::thread t4(addWithMutex, 100000);
+
+  t3.join();
+  t4.join();
+
+  std::cout << value << std::endl;
+}
+
+void add(int times) {
+  for (int i = 0; i < times; i++)
+    value++;
+}
+
+void addWithMutex(int times) {
+  for (int i = 0; i < times; i++) {
+    m.lock();
+    value++;
+    m.unlock();
+  }
 }

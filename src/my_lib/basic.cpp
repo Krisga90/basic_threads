@@ -4,6 +4,12 @@
 #include <iostream>
 #include <thread>
 
+int Base::m_val = 0;
+
+void Base::increment(int times) {
+    for (int i = 0; i < times; i++)
+      m_val++;
+  }
 
 void RefreshForecast(std::map<std::string, int> *forecast_map)
 {
