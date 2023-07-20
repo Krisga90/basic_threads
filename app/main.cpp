@@ -10,14 +10,22 @@
 
 int value = 0;
 std::mutex m;
+std::timed_mutex tm;
+std::recursive_mutex rm;
 
 void example1();
 void example2();
 void example3();
-void example4();
+void example4(void (*fun1)(int), void (*fun2)(int));
+void example5(void (*fun1)(int, char), void (*fun2)(int, char));
 
 void add(int times);
 void addWithMutex(int times);
+void addWithTry_lock(int times);
+void addWithTry_lock_for(int times);
+void printWithRecursiveMutex(int times, char ch);
+void printWithoutMutex(int times, char ch);
+void printLockGuard(int times, char ch);
 
 int main() {
   using namespace std::chrono;
@@ -26,7 +34,15 @@ int main() {
 
   // your code here
 
-  example4();
+//     example4(addWithMutex, addWithMutex);
+
+//   example4(addWithTry_lock, addWithTry_lock);
+  
+//   example5(printWithRecursiveMutex, printWithRecursiveMutex);
+  example5(printLockGuard, printLockGuard);
+
+  
+  
 
   // end your code;
 
@@ -90,22 +106,22 @@ void example3() {
   worker3.join();
 }
 
-void example4() {
-
+void example4(void (*fun1)(int), void (*fun2)(int)) {
+    int count_to = 1000000;
+    value = 0;
   // no mutex
-  std::thread t1(add, 100000);
-  std::thread t2(add, 100000);
+  std::thread t1(add, count_to);
+  std::thread t2(add, count_to);
 
   t1.join();
   t2.join();
 
   std::cout << value << std::endl;
   // end no mutex;
-
-  //   with mutex
   value = 0;
-  std::thread t3(addWithMutex, 100000);
-  std::thread t4(addWithMutex, 100000);
+  //   with mutex
+  std::thread t3(fun1, count_to);
+  std::thread t4(fun2, count_to);
 
   t3.join();
   t4.join();
@@ -113,7 +129,19 @@ void example4() {
   std::cout << value << std::endl;
 }
 
+void example5(void (*fun1)(int, char), void (*fun2)(int, char))
+{
+    int times  = 100;
+    std::thread t1(fun1, times, 'x');
+    std::thread t2(fun2, times, 'o');
+
+    t1.join();
+    t2.join();
+    std::cout << value <<std::endl;
+}
+
 void add(int times) {
+  
   for (int i = 0; i < times; i++)
     value++;
 }
@@ -124,4 +152,72 @@ void addWithMutex(int times) {
     value++;
     m.unlock();
   }
+}
+
+void addWithTry_lock(int times) {
+  for (int i = 0; i < times; i++) {
+    if (m.try_lock()) {
+      value++;
+      m.unlock();
+    }
+  }
+}
+
+void addWithTry_lock_for(int times)
+{
+    for (int i = 0; i < times; i++) {
+    if (tm.try_lock_for(std::chrono::nanoseconds(10))) {
+    //   std::this_thread::sleep_for(std::chrono::nanoseconds(5));
+      value++;
+      tm.unlock();
+    }
+    }
+}
+
+void addWithRecursiveMutex(int times)
+{
+    times--;
+    if(times>0)
+        addWithRecursiveMutex(times);
+    rm.lock();
+    value++;
+    rm.unlock();    //bad example, it could be changed with normal mutex
+}
+
+
+void printWithRecursiveMutex(int times, char ch)
+{
+    if(times==0)
+    {   
+        std::cout<<'\n';
+        return;
+    }
+    rm.lock();
+    value++;
+    std::cout <<ch << ", ";
+    printWithRecursiveMutex(--times, ch);
+    rm.unlock();
+}
+
+void printWithoutMutex(int times, char ch)
+{
+    if(times==0)
+    {   
+        std::cout<<'\n';
+        return;
+    }
+    value++;
+    std::cout <<ch << ", ";
+    printWithoutMutex(--times, ch);
+}
+
+void printLockGuard(int times, char ch)
+{
+    std::lock_guard<std::mutex> lg(m);
+    for (; times > 0; times--)
+    {   
+        value++;
+        std::cout <<ch << ", ";
+    }
+    std::cout<<'\n';
 }
